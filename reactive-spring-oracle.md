@@ -3,8 +3,8 @@
 - the need for async, reactive IO
 - the missing idiom
 - the reactive streams initiative
-- the reactive Spring ecosystem
 - towards higher order operators w/ Reactor
+- the reactive Spring ecosystem
 - writing some sample data  w/ reactor and dependent calls
 - data access
 - spring mvc style controllers
@@ -50,27 +50,28 @@ A `Publisher<T>` that is also a `Subscriber<T>` is called a `Processor<T>`
 .`Processor<T>`
 <!--  -->
 
-// todo
-The `Publisher` and `Subscriber` invert the normal dynamic of computation. instead of pulling data from a source, a subscriber asks for the next record.
-.3.5. Backpressure
+The `Publisher<T>` has one method, `Publisher#subscribe(Subscriber<T>)`. The `Subscriber` has a callback method, `Subscriber#onSubscribe(Subscription)`. that is invoked by the `Publisher<T>`. This is the first and last interaction between the `Publisher<T>` and the `Subscriber<T>` _until_ the subscriber calls the `Subscription#request(long numberOfRecordsRequested)` method. Here, the `Subscriber<T>` signals to the `Publisher<T>` how many more records, `T`, it is prepared to handle. The `Subscriber<T>` can not be overwhelmed - it will receive only as many records as it can handle. Then, and only then, will the `Subscriber#onNext(T)` method be called, as many times as requested. This dynamic  - where the producer gates the production based on capacity - is called _backpressure_; it's a way of managing flow.
 
-<!--  the following text is from the reactor documentation  -->
-Propagating signals upstream is also used to implement backpressure, which we described in the assembly line analogy as a feedback signal sent up the line when a workstation processes more slowly than an upstream workstation.
-The real mechanism defined by the Reactive Streams specification is pretty close to the analogy: a subscriber can work in unbounded mode and let the source push all the data at its fastest achievable rate or it can use the request mechanism to signal the source that it is ready to process at most n elements.
-Intermediate operators can also change the request in-transit. Imagine a buffer operator that groups elements in batches of 10. If the subscriber requests 1 buffer, then it is acceptable for the source to produce 10 elements. Prefetching strategies can also be applied, if producing the elements before they are requested is not too costly.
-This transforms the push model into a push-pull hybrid where the downstream can pull n elements from upstream if they are readily available, but, if the elements are not ready, then they will get pushed by the upstream whenever they are produced.
-
-
-<!--  -->
-
-the RS spec serves as a foundation for interoperability. it provides a common way to address this missing idiom. the specificatio is not mean tot be a prescription for the implementation APIs, it instead defines types for interoperability. Implementors can either buiild their implementations on top of the types or at least be able to consume and producer references to the types as sort of adapters.
+The Reactive Sstreams specification serves as a foundation for interoperability. it provides a common way to address this missing metaphor. The specification is not mean tot be a prescription for the implementation APIs, it instead defines types for interoperability. Implementors can either build their implementations on top of the types or at least be able to consume and produce  references to the types as sort of adapters.
 
 The Reactive Streams types eventually found their way into Java 9 as 1:1 semantically equivalent interfaces in the `java.util.concurrent.Flow` class. The Reactive Streams initiative, for the moment, remains a sepeate set of types but the expectation is that all implementations will also support Java 9 as soon as possible.
-
-
 
 # Reactor
 
 Are the types in the Reactive Streams initiative enough? I'd say _no_! The reactive streams specification is a bit like the plain vanille array in the JDK. It provides a basis on which to support higher order computations. Most of us don't use arrays, we use something that extends from `java.util.Collection`. The same is true for the basic reactive streams types. In orer to support filering, transforming, and iteration, youll need DSLS and thats where one of the RS implementations can really help.
 
-Pivotal's Reactor project is a good choice here. its built on top of the RS spec. It provides two specializations of the `Publisher<T>` type. The first, `Flux<T>`, is a Publisher that produces 0 or more values. It's unbounded.
+Pivotal's Reactor project is a good choice here. its built on top of the Reactive Streams specification. It provides two specializations of the `Publisher<T>` type. The first, `Flux<T>`, is a Publisher that produces 0 or more values. It's unbounded. The second, `Mono<T>`, is a `Publisher<T>` that produces zero or one value. They're both publishers and you can treat them that way, but they go much further than the RS spec. They both provide ooperators - ways to  process the stream of values. Reactor types compose nicely - the output of one thing can be the input to another.
+
+# Reactive Spring
+
+As useful as Reactor is, it doesn't give us much on its own if we're trying to build a reactive web application talking to a database. Or make HTTP requests. Or support authentication and authorization. Or ..whatever. While Reactor gives us the missing metaphor, Spring helps us all speak the same language.  Spring framework was release in September 2017. It builds on Reactor and the RS specification. It includes a new reactive runtime and component model called Spring WebFlux. Spring WebFlux does not depend or require the Servlet APIs to work. It ships with adapters that allow it to work on top of a Servlet-engine, if need be, but it's not required. It also provides a Netty-based web server. Spring Framework 5 is the foundation for changes in much of the Spring ecosystem. Spring Fraework 5 has a Java 8 baseline; it works with
+
+Spring Data Kay supports reactive data stores like MongoDB, Cassandra, Redis and COuchbase and introduces new reactive repository variants and templates. Spring Security 5.0 integrates security for Spring WebFlux based applications and introduces a new hierarchy to support authentication and authorization in a reactive, non-blocking application.
+
+All of this rolls up into Spring Boot 2.0. Spring Boot 2.0 provides auto-configurations for all the aforementioned pieces and crucially adapts Spring Boot-only components like the Actuator - a set of endpoints designed to surface information about the application - to be web-runtime agnostic. The Spring Boot Actuator now works with Spring MVC, JAX-RS, and Spring WebFlux.
+
+Spring Cloud Finchley builds on Spring Boot 2.0, and updates a number of different APIs, where appropriate, to leverage the reactive paradigm. things like sevice registration and discovery work in   Sspring webflux based applications.   spring cloud commons supports client-side load-balancing for the Spring Framework `WebClient`, the new reactive HTTP client. Spring cloud netlix Hystrix circuit breakers have always worked naturally with RxJava, which in turn can interop with Reactie Streams `Publisher<T>`s. This interop is even easier now.  Spring Cloud Stream supports working with pubishers to describe how messages arrive and are sent to messaging subsraits like RabbitMQ, Apache Kafka or Redis. Spring Cloud Gateway is a new reactive API gateway project that supports HTTP and websocket  request proxying, rewriting, load-balancing, circuitbreaking, rate limiting and much more. Sspring Cloud Sleuth has been updated to support distributed tracing across reactive boundaries. 
+
+# A Bootiful application
+
+Let's look at an example. We'll build a simple Spring Boot 2.0 application. Go to the [Spring Initializr](http://start.spring.io). Make sure that some version of Spring Boot 2.0, or later, is selected in thhe version drop down menu. Select `Reactive Web`, `Actuator`, `Reactive MongoDB`, `Reactive Security`, and `Lombok`. Then, click _Generate_. You'll be given an archive; unzip it and open it in your favorite IDE that supports Java 8 (or later) and Maven (though we could've chosen Gradle at the SPSring Initializr, I'm assuming you've selected Maven for the purposes of this article.
