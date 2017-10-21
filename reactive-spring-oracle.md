@@ -70,8 +70,33 @@ Spring Data Kay supports reactive data stores like MongoDB, Cassandra, Redis and
 
 All of this rolls up into Spring Boot 2.0. Spring Boot 2.0 provides auto-configurations for all the aforementioned pieces and crucially adapts Spring Boot-only components like the Actuator - a set of endpoints designed to surface information about the application - to be web-runtime agnostic. The Spring Boot Actuator now works with Spring MVC, JAX-RS, and Spring WebFlux.
 
-Spring Cloud Finchley builds on Spring Boot 2.0, and updates a number of different APIs, where appropriate, to leverage the reactive paradigm. things like sevice registration and discovery work in   Sspring webflux based applications.   spring cloud commons supports client-side load-balancing for the Spring Framework `WebClient`, the new reactive HTTP client. Spring cloud netlix Hystrix circuit breakers have always worked naturally with RxJava, which in turn can interop with Reactie Streams `Publisher<T>`s. This interop is even easier now.  Spring Cloud Stream supports working with pubishers to describe how messages arrive and are sent to messaging subsraits like RabbitMQ, Apache Kafka or Redis. Spring Cloud Gateway is a new reactive API gateway project that supports HTTP and websocket  request proxying, rewriting, load-balancing, circuitbreaking, rate limiting and much more. Sspring Cloud Sleuth has been updated to support distributed tracing across reactive boundaries. 
+Spring Cloud Finchley builds on Spring Boot 2.0, and updates a number of different APIs, where appropriate, to leverage the reactive paradigm. things like sevice registration and discovery work in   Sspring webflux based applications.   spring cloud commons supports client-side load-balancing for the Spring Framework `WebClient`, the new reactive HTTP client. Spring cloud netlix Hystrix circuit breakers have always worked naturally with RxJava, which in turn can interop with Reactie Streams `Publisher<T>`s. This interop is even easier now.  Spring Cloud Stream supports working with pubishers to describe how messages arrive and are sent to messaging subsraits like RabbitMQ, Apache Kafka or Redis. Spring Cloud Gateway is a new reactive API gateway project that supports HTTP and websocket  request proxying, rewriting, load-balancing, circuitbreaking, rate limiting and much more. Sspring Cloud Sleuth has been updated to support distributed tracing across reactive boundaries.
 
 # A Bootiful application
 
-Let's look at an example. We'll build a simple Spring Boot 2.0 application. Go to the [Spring Initializr](http://start.spring.io). Make sure that some version of Spring Boot 2.0, or later, is selected in thhe version drop down menu. Select `Reactive Web`, `Actuator`, `Reactive MongoDB`, `Reactive Security`, and `Lombok`. Then, click _Generate_. You'll be given an archive; unzip it and open it in your favorite IDE that supports Java 8 (or later) and Maven (though we could've chosen Gradle at the SPSring Initializr, I'm assuming you've selected Maven for the purposes of this article.
+Let's look at an example. We'll build a simple Spring Boot 2.0 application.  Say, how about we build a service to manage books? We could call the project Bibliothech or Library or something ostentatious like that.
+
+Go to the [Spring Initializr](http://start.spring.io). Make sure that some version of Spring Boot 2.0, or later, is selected in thhe version drop down menu. We're writing a service to manage access to libraries, so gice this project the artifact ID `library-service`. Select `Reactive Web`, `Actuator`, `Reactive MongoDB`, `Reactive Security`, and `Lombok`. Then, click _Generate_. You'll be given an archive; unzip it and open it in your favorite IDE that supports Java 8 (or later) and Maven (though we could've chosen Gradle at the SPSring Initializr, I'm assuming you've selected Maven for the purposes of this article.
+
+Our stock standard Spring Boot application looks like this:
+
+.the empty husk of a new Sprign Boot project
+<!--  -->
+
+We've got reactive MongoDB on the classpath so lets use it to manage some data. create a new entity called `Book`.
+
+.a MongoDB `@Document` entity  
+<!--  -->
+
+create a Spring Data repository to support the data management lifecycle of the entity. this proecess should ook very familiar to anybody whos ever used Spring Data, except that the repository supports _reactive_ interactions. methods return `Publisher` types, and input can be given as a `Publisher<T>`.  
+
+.a reacive Spring Data MongoDB repository
+<!--  -->
+
+With that we have enough to install some smaple data (just for our demo). create an `ApplicationRunner` component that deletes all the data in the DB; then emits out a few book titles, maps them to `Book` entities, and then persists those books; then query all the records in the DB and prints outt everything with the subscribe call.
+
+.an ApplicationRunner to write data
+<!--  -->
+
+
+its important to understand that this is a pipeline. otthin happens until you subscribe. 
