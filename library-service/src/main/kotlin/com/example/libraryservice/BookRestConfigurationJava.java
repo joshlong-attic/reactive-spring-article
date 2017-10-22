@@ -9,9 +9,6 @@ import static org.springframework.web.reactive.function.server.RequestPredicates
 import static org.springframework.web.reactive.function.server.RouterFunctions.route;
 import static org.springframework.web.reactive.function.server.ServerResponse.ok;
 
-/**
- * @author <a href="mailto:josh@joshlong.com">Josh Long</a>
- */
 @Profile("frp-java")
 @Configuration
 class BookRestConfigurationJava {

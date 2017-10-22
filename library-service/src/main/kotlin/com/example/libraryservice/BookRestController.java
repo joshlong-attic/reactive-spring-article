@@ -6,9 +6,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
 
-/**
- * @author <a href="mailto:josh@joshlong.com">Josh Long</a>
- */
 @Profile("mvc-style")
 @RestController
 class BookRestController {

@@ -7,9 +7,6 @@ import org.springframework.security.config.web.server.HttpSecurity;
 import org.springframework.security.core.userdetails.MapUserDetailsRepository;
 import org.springframework.security.web.server.SecurityWebFilterChain;
 
-/**
- * @author <a href="mailto:josh@joshlong.com">Josh Long</a>
- */
 @Configuration
 @EnableWebFluxSecurity
 class SecurityConfiguration {

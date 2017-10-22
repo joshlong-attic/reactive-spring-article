@@ -6,9 +6,6 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-/**
- * @author <a href="mailto:josh@joshlong.com">Josh Long</a>
- */
 @Document
 @Data
 @AllArgsConstructor
