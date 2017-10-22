@@ -76,6 +76,8 @@ Spring Cloud Finchley builds on Spring Boot 2.0, and updates a number of differe
 
 Let's look at an example. We'll build a simple Spring Boot 2.0 application.  Say, how about we build a service to manage books? We could call the project Bibliothech or Library or something ostentatious like that.
 
+## the Spring Initializr
+
 Go to the [Spring Initializr](http://start.spring.io). Make sure that some version of Spring Boot 2.0, or later, is selected in thhe version drop down menu. We're writing a service to manage access to libraries, so gice this project the artifact ID `library-service`. Select `Reactive Web`, `Actuator`, `Reactive MongoDB`, `Reactive Security`, and `Lombok`. Then, click _Generate_. You'll be given an archive; unzip it and open it in your favorite IDE that supports Java 8 (or later) and Maven (though we could've chosen Gradle at the SPSring Initializr, I'm assuming you've selected Maven for the purposes of this article.
 
 Our stock standard Spring Boot application looks like this:
@@ -83,17 +85,22 @@ Our stock standard Spring Boot application looks like this:
 .the empty husk of a new Sprign Boot project
 <!--  -->
 
+## Data Access with Reactive Spring Data  modules
+
 We've got reactive MongoDB on the classpath so lets use it to manage some data. create a new entity called `Book`.
 
-.a MongoDB `@Document` entity  
+.a MongoDB `@Document` entity
 <!--  -->
 
-create a Spring Data repository to support the data management lifecycle of the entity. this proecess should ook very familiar to anybody whos ever used Spring Data, except that the repository supports _reactive_ interactions. methods return `Publisher` types, and input can be given as a `Publisher<T>`.  
+create a Spring Data repository to support the data management lifecycle of the entity. this proecess should ook very familiar to anybody whos ever used Spring Data, except that the repository supports _reactive_ interactions. methods return `Publisher` types, and input can be given as a `Publisher<T>`.
 
 .a reacive Spring Data MongoDB repository
 <!--  -->
 
-With that we have enough to install some smaple data (just for our demo). create an `ApplicationRunner` component that deletes all the data in the DB; then emits out a few book titles, maps them to `Book` entities, and then persists those books; then query all the records in the DB and prints outt everything with the subscribe call.
+With that we have enough to install some smaple data (just for our demo). create an `ApplicationRunner` component that deletes all the data in the DB; then emits out a few book titles, maps them to `Book` entities, and then persists those books; then query all
+the records in the DB and prints outt everything with the subscribe call.
+
+## installation of some sample data
 
 .an ApplicationRunner to write data
 <!--  -->
@@ -101,7 +108,13 @@ With that we have enough to install some smaple data (just for our demo). create
 
 its important to understand that this is a pipeline. each step in the code listing defines a stage in a pipeline. the pipeline is not _hot_, or eager. we need to trgger the pipeline. u can do this by subscribing. the `Publisher<T>`  api only defines one type of subscription, but Reactor defines a few overloads that support consumers and callbacks. there are other overloads that suport providing lambas to  a) process any of the emitted values with a `Consumer<T>` b) process any throwables thrown during procesing c) a Runnable to be  run when the `Publisher<T>` has finished emitting values d) a consumer that is given the initial subscription that is created after the subriber has subscribed to a pulbisher. these lambdas provide the same lifecycle hooks as overriding individual methods in a fully formed `Subscriber<T>` would.
 
-now that weve got ddata in the database, lets stand up a rest api. we can use Spring MVC style controllers, like this:
+## Spring WebFlux
+
+now that weve got ddata in the database, lets stand up a rest api. well use spring webflux, a brand new reactive web runtime and component model. Soring WbFlux does not depend on the servelt specification . it can work independtly, with a Netty-based web server. it is designed, from the bottom up, to work with Publishers.
+
+## REST w/ Sprign MVC style endpoints
+
+we can use Spring MVC style controllers, like this:
 
 .a Sprng MVC style REST api. make sure to run the sample code w/ the `mvc-style` profile
 <!--
@@ -109,6 +122,8 @@ now that weve got ddata in the database, lets stand up a rest api. we can use Sp
  -->
 
 this api should loko familiar to anybody who has ever sed spring mvc. the class provides endpoint handlers and endpoint mappings through declarative annnotations. the annotations describe the endpont and how the routing should be handled. theyre sophistcated, but ultimately limited to whatever the framework itself can do with those annnotations. if u want morre flexible request matching capabilities, youo  can use  sprinng webflux functional reactive endpoints.
+
+## Functional Reactive WebFlux Endpoints
 
 .the same endpoints reworked as a funtional reactieve endpoints in java . make sure ot run this using the `frp-java` profile
 <!--  -->
@@ -118,9 +133,14 @@ the functional reacitve style lets u express http endpoints as  request predicat
 .heres the same endpoints using the Kotlin anguage DSL
 <!-- the Kotkin language example -->
 
+// todo talk about how were chunking the results and so on
+// intoduce the idea that u could handle all sorts of itnteractions ith the client in the same fashion since, at the end of the day, everything is a publisher. a publisher can handle websockets. it can handle server sent events. it can do everything.
 
+Alright! Not bad. We've got a rest api, three different ways! canw e go to  production yet? Not yet. There are a number of concerns that need to be addressed in this. one is observability. observability is the insight that, no matter what technical stack ur using, no matter which business vertical ur software serves, no matter where ur buildign software, one thing is surprisingly consistnet: when the pager (or pagerduty, as much as antyhing these days) goes off, _somebody_ gets roused to a computer and has to get things back online. the goal is not to do rr
 
-<!--  
+.
+
+<!--
   TODO:;
     - mention that there are a zillion other already possible things inlcuding using Reactor in Sprinng INtegraton
     - there's RSocket, which has a lot of possibility as well
