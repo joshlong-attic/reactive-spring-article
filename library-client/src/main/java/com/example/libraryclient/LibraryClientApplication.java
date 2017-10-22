@@ -16,10 +16,10 @@ import org.springframework.web.reactive.function.client.WebClient;
 public class LibraryClientApplication {
 
     @Bean
-    WebClient webClient(@Value("${libary-service:http://localhost:8080/}") String url) {
-        ExchangeFilterFunction basicAuthentication = ExchangeFilterFunctions
+    WebClient client(@Value("${libary-service-url:http://localhost:8080/}") String url) {
+        ExchangeFilterFunction basicAuth = ExchangeFilterFunctions
                 .basicAuthentication("rwinch", "pw");
-        return WebClient.builder().baseUrl(url).filter(basicAuthentication).build();
+        return WebClient.builder().baseUrl(url).filter(basicAuth).build();
     }
 
     @Bean
