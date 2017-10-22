@@ -20,7 +20,7 @@ class BookRestConfigurationJava {
             route(GET("/books"),
                 req -> ok().body(br.findAll(), Book.class))
             .andRoute(GET("/books/{author}"),
-                req -> ok().body(br.findByAuthor(req.pathVariable("title")), Book.class));
+                req -> ok().body(br.findByAuthor(req.pathVariable("author")), Book.class));
     }
     //@formatter:on
 }

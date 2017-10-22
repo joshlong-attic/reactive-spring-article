@@ -23,9 +23,10 @@ class SampleBookInitializer implements ApplicationRunner {
         this.bookRepository
             .deleteAll()
             .thenMany(
-                Flux.just("Professional Java Development with the Spring Framework|rjohnson",
-                    "Cloud Native Java|jlong", "Spring Security 3.1|rwinch", "Spring in Action|cwalls"))
-            .map(title -> new Book(null, title))
+              Flux.just("Professional Java Development with the Spring Framework|rjohnson",
+                "Cloud Native Java|jlong", "Spring Security 3.1|rwinch", "Spring in Action|cwalls"))
+            .map(t -> t.split("\\|"))
+            .map(tuple -> new Book(null, tuple[0], tuple[1]))
             .flatMap(this.bookRepository::save)
             .thenMany(this.bookRepository.findAll())
             .subscribe(book -> log.info(book.toString()));
