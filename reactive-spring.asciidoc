@@ -195,12 +195,11 @@ include::./library-service/src/main/kotlin/com/example/libraryservice/BookRestCo
 ----
 ====
 
-
 The functional reactive style lets you express HTTP endpoints as request predicates mapped to a handler class. The handler class implementation is easily expressed as concise Java lambdas. You  can use the default request predicates or provide your to gain full control over how requests are matched and dispatched.
 
 We produce a result and pass it to the `body(Publisher<T>)` method, along with a class literal. We need the class literal to help the engine figure out  what type of message framing it should do. Remember, that `Publisher<T>` _might_ produce a TRILLION records! It might not ever stop! The producer can't afford to wait until all records have been produced and _then_ marshal the record from an object to JSON. So, it marhsals each record as soon as it's got it. We need to tell it what kind of message to look out for. In the Spring MVC style controllers, the return value (a `Publisher<T>`) in the handler methods encodes its generic parameter, `T`, and the engine can retrieve that generic parameter using reflection. The engine can _not_ do the same thing for the instance variable passed into the `body` method as a parameter since there's no easy way to retrieve the generic signature of instance variables. We call this limitation _type erasure_. The type literal gets us past this restriction.
 
-If you're using the Kotlin language, things are even more concise thanks to a Kotlin-language DSL that also ships as part of Spring Framework 5.   Kotlin requires less code and also supports retrieving the generic parameter thanks to runtime reification of inline methods. Here are the same endpoints reimplemented using the Kotlin-language DSL:
+If you're using the Kotlin language, things are even more concise thanks to a Kotlin-language DSL that also ships as part of Spring Framework 5. The Kotlin DSL requires less code and also supports retrieving the generic parameter thanks to runtime reification of inline methods. Here are the same endpoints reimplemented using the Kotlin-language DSL:
 
 .Here are the same endpoints using the Kotlin-language DSL
 ====
@@ -210,3 +209,107 @@ include::./library-service/src/main/kotlin/com/example/libraryservice/BookRestCo
 ----
 ====
 
+== Observability with Spring Boot 2.0's Actuator
+
+Alright! Not bad. We've got a REST API. (Three, even!)  Can we go to production yet? Not yet. There are a number of concerns that need to be addressed first. One is observability. Observability is the insight that, no matter the technical stack, business vertical, geography or deployment model, one thing is surprisingly consistent: when the pager (or PagerDuty) goes off, _somebody_ gets roused to a computer and has to get things back online. _A human being_.
+
+The goal is not root cause analysis but instead to salve the wound. When the system is down, every second counts and we need to support the recovery process with as much visibility into the system as possible. Different levels of the runtime will aid you here: a smart platform, like Cloud Foundry, can tell us a lot about the container running the application. The application itself is in the best situation to articulate its own state. The Spring Boot Actuator can help us here.
+
+The Spring Boot Actuator isn't uniquely reactive. It's been in Spring Boot from the beginning. The news here is that, as of Spring Boot 2.0, it has been divorced from any particular web runtime. It no longer requires Spring MVC; it can work with Spring WebFlux, Spring MVC, or JAX-RS. Specify that it export the HTTP web endpoints with a bit of configuration:
+
+.configuration to expose the Actuator endpoints for http access
+====
+[source,java,indent=0]
+----
+include::./library-service/src/main/resources/application.properties[]
+----
+====
+
+All the Actuator endpoints are in place, contextualized under `/application`. There are a number of endpoints including   `/application/trace`, `/application/health`, `/application/env`, and `/application/metrics`.
+
+.The output of the `/application/health` endpoint.
+====
+[source,java,indent=0]
+----
+{
+   "status" : "UP",
+   "details" : {
+      "diskSpace" : {
+         "status" : "UP",
+         "details" : {
+            "free" : 685532655616,
+            "total" : 1004314628096,
+            "threshold" : 10485760
+         }
+      },
+      "mongo" : {
+         "details" : {
+            "version" : "3.2.11"
+         },
+         "status" : "UP"
+      }
+   }
+}
+----
+====
+
+The metrics endpoint has been reworked in Spring Boot 2.0. It's now backed by a new project called http://micrometer.io[Micrometer]. Micrometer is an abstraction for dimensional metrics publication and accumulation. It integrates with time series databases like Prometheus, Netflix Atlas, and Datadog. Support for InfluxDB, statsd, and Graphite are coming. Spring Boot captures metrics related to the application, and you can capture custom metrics as well.
+
+.The output of the `/application/metrics` endpoint.
+====
+[source,java,indent=0]
+----
+{
+   "names" : [
+      "jvm.buffer.memory.used",
+      "jvm.memory.used",
+      "jvm.buffer.count",
+      "logback.events",
+      "process.uptime",
+      "jvm.memory.committed",
+      "http.server.requests",
+      "jvm.buffer.total.capacity",
+      "jvm.memory.max",
+      "process.starttime"
+   ]
+}
+----
+====
+
+
+== Spring Security
+
+I know what you're thinking, but its *still* not quite ready for production. We need to address security. We'll use Spring Security 5.0. Spring Security  supports a rich set of integrations with all manner of identity providers. It supports authentication and authorization. Spring Security supports authentication by propagating a security context so that application level code - method invocations, HTTP requests, etc. - have easy access to the context. The context has historically been implemented with a `ThreadLocal`. This makes a lot of sense in a non-reactive world, but less so in  a reactive world. Reactor provides a  `Context` object, which acts as a sort of dictionary. Spring Security 5.0's reactive support propagates its security context using this mechanism. Parallel, reactive type hierarchies have been introduced to support non-blocking authentication and authorization.
+
+You don't have to worry about much of this nuance. I just think it's dope. All we need to know is that in the reactive world, authentication is handled by an object of type `ReactiveAuthenticationManager` which has a simple job: given an `Authentication` attempt, return a `Mono<Authentication>`  (indicating whether the authentication attempt succeeded) or throw an `Exception`.
+
+One implementation of the `ReactiveAuthenticationManager` supports delegating to a user-provided object of type `UserDetailsRepository`. The `UserDetailsRepository` connects your custom username and password store to Spring Security's authentication. You might have a database table called `USERS` or just a hardcoded `Map<K,V>` of users. Let's establish introduce a few users of various roles. All users will have the `USER` role, but only a privileged few will have the `ADMIN` role. In this newly secured world, let's say that all users will be able to view the books they've written, but only those with the `ADMIN` role will be able to see _all_ the books. (Let's ignore for now whether this domain makes any sense!)
+
+.The Spring Security configuration
+====
+[source,java,indent=0]
+----
+include::./library-service/src/main/kotlin/com/example/libraryservice/SecurityConfiguration.java[]
+----
+====
+
+Let's try making an HTTP BASIC authenticated call to the service:
+
+.`curl` the requests as both `jlong` and as `rwinch`
+====
+[source,java,indent=0]
+----
+include::./library-service/src/main/kotlin/com/example/libraryservice/SecurityConfiguration.java[]
+----
+====
+
+
+by default, spring secrity locks down the whole application and installs http basic authentication. any attempt at calling any endpoint will fail unless we provide credentials. the problem is that, right onw, all authenticated users can access all endpoints. lets suppose that we want only want to allow users with therole 'user' to interact w/ the books they created, but those with the role `admin` to read _all_ books. this requires authorization. .
+
+.configuraing authorizatoin with Sspring Security
+<!--  -->
+
+lets try it out by making some more authenticated requests
+
+.making some more curl command sto talk to the endpdonits
+<!--  -->

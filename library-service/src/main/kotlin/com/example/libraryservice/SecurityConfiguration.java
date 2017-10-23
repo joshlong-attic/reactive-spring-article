@@ -20,25 +20,18 @@ import java.util.List;
 @EnableWebFluxSecurity
 class SecurityConfiguration {
 
-    private static UserDetails user(String u, String... roles) {
-        List<String> r = new ArrayList<>(Arrays.asList(roles));
-        r.add("USER");
-        String[] rolesArray = r.toArray(new String[0]);
-        return User.withUsername(u).password("pw").roles(rolesArray).build();
-    }
-
     @Bean
     MapUserDetailsRepository authentication() {
         return new MapUserDetailsRepository(
-                user("rjohnson", "ADMIN"),
-                user("cwalls"),
-                user("jlong"),
-                user("rwinch", "ADMIN"));
+            user("rjohnson", "ADMIN"),
+            user("cwalls"),
+            user("jlong"),
+            user("rwinch", "ADMIN"));
     }
 
     //@formatter:off
-    @Profile("authorization")
     @Bean
+    @Profile("authorization")
     SecurityWebFilterChain authorization(HttpSecurity http) {
         return
             http
@@ -55,4 +48,11 @@ class SecurityConfiguration {
                 .build();
     }
     //@formatter:on
+
+    private static UserDetails user(String u, String... roles) {
+        List<String> r = new ArrayList<>(Arrays.asList(roles));
+        r.add("USER");
+        String[] rolesArray = r.toArray(new String[0]);
+        return User.withUsername(u).password("pw").roles(rolesArray).build();
+    }
 }

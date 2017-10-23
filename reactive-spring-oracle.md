@@ -14,28 +14,6 @@
 
 
    
-
-## observability with Spring Boot 2's Actuator
-// todo talk about how were chunking the results and so on
-// intoduce the idea that u could handle all sorts of itnteractions ith the client in the same fashion since, at the end of the day, everything is a publisher. a publisher can handle websockets. it can handle server sent events. it can do everything.
-
-Alright! Not bad. We've got a rest api, three different ways! canw e go to  production yet? Not yet. There are a number of concerns that need to be addressed in this. one is observability. observability is the insight that, no matter what technical stack ur using, no matter which business vertical ur software serves, no matter where ur buildign software, one thing is surprisingly consistnet: when the pager (or pagerduty, as much as antyhing these days) goes off, _somebody_ gets roused to a computer and has to get things back online. the goal is not root cause analysi, but to salve the wound. when the system is down, every second counts and we need to  support the remediation rpoccess with aas much insight into the operation of the system as possible. diffferent levels of the runtime will aid you here: a smart platform,  like Cloud Founddry, can gie ua  lot of insigth about the container running thw applicatoin and the runtime itself. the applicatoin is n the best situation to articalate its own state. we can support that articulatoin with the spring boot actuator.
-
-the spring boot actuator isnt uniquely reactive. its been in spring boot from the beginning. the good news here is that, as of spring boot 2.0, it has been divorced frm any particualr web runtime. it no longer requires Spring MVC. it can work with Spring WebFlux, spring mvc, or jax-rs. specify that it export the http web endpoints with a bit of confiuration.
-
-.configuration to expose the Actuator endpoints for http access
-<!--  -->
-
-w/ teh actuaot endpoints in place u can access all the usual suspects including the `applicatoin/metrics` endpoint and the `/applicatoin/health` endpoints.
-
-.the health endponit
-<!--  -->
-
-the metrics endpoint is eworked in spring boot 2. its now backed by a new project  called [micrometer](http://micrometer.io). micrometer is an abstraction for dimensional metrics publication and accumulatoin. it integrates with time series databases like    Prometheus, Netflix Atlas, and Datadog. Support for InfluxDB, statsd, and Graphite are coming.  we designed micrometer to be framework agnostic, so u could use it independent of SPring Boot. that said, we hope youll agreeits even more compelling with.
-
-.the metrics endpoint
-<!--  -->
-
 ## Spring Security
 
 I know what youre thinking, but its *still* nto quite ready fro production. we need to address security. We'll use Spring Security 5.0. spring security has been the bedrock for application security since its inception, providing a rich set of integrations with all manner of identity providers. it supports authentication and authorization. Spring Security supports authentication by propagating a security context so that application level code - method invocations, http requests, etc. - have easy access to the context. the context has, historically, been implemented in terms of a threadlocal, which makes a lot of sense in a non-reactive world. in a reactive world, however, things arent's so simple. thankfully, Reactor provides a  `Context` object, which acts as a sort of dictionary. Sspring Seecurity has been reworked to propagate its security context using this. additionally, parraellel, reactive type hierarchies  have been introduced that support non-blocking interaction with the security apparata for ur application.  
