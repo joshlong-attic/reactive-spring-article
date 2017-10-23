@@ -15,7 +15,6 @@ class BookRestConfigurationKotlin {
     @Bean
     fun routes(br: BookRepository) = router {
         GET("/books") { r -> ok().body(br.findAll()) }
-
         GET("/books/{author}") { r -> ok().body(br.findByAuthor(r.pathVariable("author"))) }
     }
     //@formatter:on

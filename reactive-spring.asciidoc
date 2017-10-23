@@ -1,10 +1,10 @@
 [[Reactive Spring]]
-:book-root: .
 
 == Reactive Spring
 by Josh Long (@starbuxman), Spring Developer Advocate, Pivotal
 
 == The Need for Async IO
+
 At Pivotal we see a lot of organizations moving to microservices. The architecture emphasizes small, singly focused, independently deployable pieces of functionality. They're small because small implies a smaller team working on the codebase. They're singly focused because it's easier to stay small that way. They're independently deployable because that means you're never blocked by other teams in the organization. The architecture has a lot of benefits; it supports organizational agility. But, the approach implies network distribution. The distribution in turn invites architectural complexity. Things get difficult when dependencies and networks fail. Things get difficult when the conduction of data between nodes becomes overwhelming.
 
 Blocking IO makes the situation worse. When we say blocking, we mean that for a client to read a `byte` from a file or a socket (or whatever), it needs to wait for the `byte` to arrive. The thread in which the read is happening is idle, but unusable. On the JVM, where creating threads is very expensive, having wasted resources like this is all the more the pity. It doesn't need to be this way. At the lower levels in an operating system, network and file IO is typically asynchronous by default.
@@ -15,18 +15,198 @@ We think about the world in terms of instances of our domain model entities, `T`
 
 Such a metaphor would need to be coupled with a way to gate the production and consumption of values. In the world of finite data sets, producers may occasionally overwhelm consumers but a consumer can buffer extra work, allowing it to eventually get to it. This works because the buffer is sufficient to absorb the overwhelming demand. What happens if the production is infinite? Eventually, like occupants in a leaky boat desperately trying to bail out the ocean, the consumer will sink. This is called flow control, and it needs to be a first class feature of any computational metaphor we choose.
 
+== The Missing Metaphor
+
+We haven't had a good metaphor to address this use case. Not for want of trying, of course... Many have done a lot of great work in this space. Microsoft Research kicked things off with the RX extensions for .NET. Netflix ported that to Java and created RX Java. RX Java has in turn inspired countless clones in other languages and platforms like Swift, Node.js, and Ruby. The Spring team launched a project called http://projectreactor.io[Reactor]. Lightbend (ne' Typesafe) tried to support this space in Akka and the Akka Streamsproject. Tim Fox, first at VMWare, and then at RedHat, launched the vert.x project. all of these attempt to address the same usecases: fill in the gap in our idioms and then, tow whatever extn possible, develop an ecosyste of tools on top of the new idiom that suppots modern application development concerns.
+
+== The Reactive Streams Initiative
+
+There's common ground across these different approaches. The aforementioned vendors worked together to develop a de-facto standard, http://www.reactive-streams.org[the Reactive Streams initiative]. The Reactive Streams initiative defines four types:
+
+The `Publisher<T>` is the computational metaphor we've been looking for. It defines the missing piece; a producer of values that may eventually arrive. A `Publisher<T>` produces values of type `T`.
+
+.the Reactive Streams `Publisher<T>`.
+====
+[source,java,indent=0]
+----
+package org.reactivestreams;
+
+public interface Publisher<T> {
+
+    void subscribe(Subscriber<? super T> s);
+}
+----
+====
+
+The `Subscriber` subscribes to a `Publisher<T>`, receiving notifications on any new values of type `T`.
+
+.the Reactive Streams `Subscriber<T>`.
+====
+[source,java,indent=0]
+----
+package org.reactivestreams;
+
+public interface Subscriber<T> {
+
+    public void onSubscribe(Subscription s);
+
+    public void onNext(T t);
+
+    public void onError(Throwable t);
+
+    public void onComplete();
+}
+----
+====
+
+When a `Subscriber<T>` subscribes to a `Publisher<T>`, it results in a `Subscription<T>`.
+
+.The Reactive Streams `Subscription<T>`.
+====
+[source,java,indent=0]
+----
+package org.reactivestreams;
+
+public interface Subscription {
+
+    public void request(long n);
+
+    public void cancel();
+}
+----
+====
+
+A `Publisher<T>` that is also a `Subscriber<T>` is called a `Processor<T>`.
+
+.The Reactive Streams `Processor<T>`.
+====
+[source,java,indent=0]
+----
+package org.reactivestreams;
+
+public interface Processor<T, R> extends Subscriber<T>, Publisher<R> {
+}
+----
+====
+
+The `Publisher<T>` has one method, `Publisher#subscribe(Subscriber<T>)`. The `Subscriber` has a callback method, `Subscriber#onSubscribe(Subscription)`. that is invoked by the `Publisher<T>`. This is the first and last interaction between the `Publisher<T>` and the `Subscriber<T>` _until_ the subscriber calls the `Subscription#request(long numberOfRecordsRequested)` method. Here, the `Subscriber<T>` signals to the `Publisher<T>` how many more records, `T`, it is prepared to handle. The `Subscriber<T>` can not be overwhelmed - it will receive only as many records as it can handle. The `Subscriber#onNext(T)` method is be called only as many times as requested. This dynamic - where the producer gates the production based on capacity - is called _backpressure_; it's a way of managing flow.
+
+The Reactive Streams specification serves as a foundation for interoperability. It provides a common way to address this missing metaphor. The specification is not mean to be a prescription for the implementation APIs, it instead defines types for interoperability.
+
+The Reactive Streams types eventually found their way into Java 9 as one to one semantically equivalent interfaces in the `java.util.concurrent.Flow` class. The Reactive Streams initiative, for the moment, remains a separate set of types but the expectation is that all implementations will also support Java 9 as soon as possible.
+
+== Reactor
+Are the types in the Reactive Streams initiative enough? I'd say _no_! The Reactive Streams specification is a bit like a plain vanilla Java array: it provides a basis on which to support higher order computations. Most of us don't use `T[]` arrays directly, we use something that extends from `java.util.Collection<T>`. The same is true for the basic Reactive Streams types. In order to support filtering, transforming, and iteration, you'll need DSLS and that's where Reactive Streams implementations can really help.
+
+Pivotal's Reactor project is a good choice here; it's built on top of the Reactive Streams specification. It provides two specializations of the `Publisher<T>`. The first, `Flux<T>`, is a Publisher that produces zero or more values. It's unbounded. The second, `Mono<T>`, is a `Publisher<T>` that produces zero or one value. They're both publishers and you can treat them that way, but they go much further than the  Reactive Streams specification. They both provide operators, ways to  process a stream of values. Reactor types compose nicely - the output of one thing can be the input to another.
+
+== Reactive Spring
+As useful as project Reactor is, it's only a foundation. Our applications need to talk to data sources. They need to produce and consume HTTP, SSE and WebSocket endpoints. They support authentication and authorization. Spring provides these things. If Reactor gives us the missing metaphor, Spring helps us all speak the same language.
+
+Spring Framework 5.0 was released in September 2017. It builds on Reactor and the Reactive Streams specification. It includes a new reactive runtime and component model called https://docs.spring.io/spring-framework/docs/current/spring-framework-reference/web-reactive.html#webflux[Spring WebFlux]. Spring WebFlux does not depend on or require the Servlet APIs to work. It ships with adapters that allow it to work on top of a Servlet-engine, if need be, but it's not required. It also provides a Netty-based web server. Spring Framework 5, which works with a baseline of Java 8 and Java EE 7 -  is the foundation for changes in much of the Spring ecosystem.
+
+== A Bootiful Application
+Let's look at an example. We'll build a simple Spring Boot 2.0 application that, oh, I don't know... How about we build a service to manage books? We could call the project _Library_ or something like that.
+
+== The Spring Initializr
+Go to the http://start.spring.io[Spring Initializr]. Make sure that some version of Spring Boot 2.0 (or later) is selected in the version drop down menu. We're writing a service to manage access to books in the library, so give this project the artifact ID `library-service`. Select `Reactive Web`, `Actuator`, `Reactive MongoDB`, `Reactive Security`, and `Lombok`. I chose to use the Kotlin language, even if most of the project we'll build is in Java. You can keep Java artifacts in a Kotlin project. Then, click _Generate_ and it'll download an archive; unzip it and open it in your favorite IDE that supports Java 8 (or later), Kotlin (optionally) and Maven. While we could've chosen Gradle at the Spring Initializr, I've chosen Maven for the purposes of this article.
+
+Our stock standard Spring Boot application has an entry class that looks like this.
+
+.the empty husk of a new Spring Boot project.
+====
+[source,java,indent=0]
+----
+include::./library-service/src/main/kotlin/com/example/libraryservice/LibraryServiceApplication.java[]
+----
+====
+
+== Data Access with Reactive Spring Data  modules
+
+Spring Data Kay is the largest update to Spring Data since its inception. This release debuts support, where supported in the underlying data stores (MongoDB, Cassandra, Redis and Couchbase), for reactive data access. It introduces new reactive repository and template implementations. We've got the reactive MongoDB driver and Spring Data module on the classpath so let's use them to manage some data. Create a new entity called `Book`.
+
+.a MongoDB `@Document` entity, `Book`
+====
+[source,java,indent=0]
+----
+include::./library-service/src/main/kotlin/com/example/libraryservice/Book.java[]
+----
+====
+
+Create a Spring Data repository to support the data management lifecycle of the entity. This should look very familiar for anybody who's ever used Spring Data, except that the repository supports _reactive_ interactions: methods return `Publisher` types, and input can be given as `Publisher<T>` instances.
+
+.A reacive Spring Data MongoDB repository
+====
+[source,java,indent=0]
+----
+include::./library-service/src/main/kotlin/com/example/libraryservice/BookRepository.java[]
+----
+====
 
 
+== Install Some Sample Data with an `ApplicationRunner`
+With that we have enough to install some sample data (just for our demo). Spring Boot invokes the `#run(ApplicationArguments)` method when the application has started, passing in wrappers for the arguments (`String [] args`) into the application. Let's create an `ApplicationRunner` that deletes all the data in the data source, then emits a few book titles, then maps them to `Book` entities, and then persists those books; then queries all the records in the data source and then prints out everything.
 
-// == Reactive Spring
-// So you've got that shiny new distributed runtime, infinite greenfield potential, and lots of existing applications; now what?((("application forklifting", id="ix_appfork")))
-// Alternatively, you can specify the buildpack in the `manifest.yml` file that accompanies your application. As an example, suppose we have a Java EE application that has historically been deployed using IBM's WebSphere. IBM maintains a very capable WebSphere Liberty buildpack. To demonstrate this, let's say we want to deploy and run a basic  `Servlet` (<<example0502>>). (Let's ignore, for now, that we can run `Servlet` components in Spring Boot applications, as shown in <<using-servlet-apis-in-a-spring-boot-application>>.)
-//
-// [[example0502]]
-// .A (very) basic Java EE Servlet
-// ====
-// [source,java,indent=0]
-// ----
-// include::{book-root}/forklifting/buildpacks/src/main/java/demo/DemoApplication.java[]
-// ----
-// ====
+.an `ApplicationRunner` to write data
+====
+[source,java,indent=0]
+----
+include::./library-service/src/main/kotlin/com/example/libraryservice/SampleBookInitializer.java[]
+----
+====
+
+The example looks at the titles of various books, and one of (the possibly numerous) book's authors, and writes them to the database. First the strings are split by the `|` delimiter. Then the title and book author are used to create a `Book`. Then the records are saved to the data source, MongoDB. The result of the `save` operation is a `Mono<Book>`. Something needs to subscribe to each of those resulting `Publisher<T>`s, so we use the `flatMap` operator. Then, we switch tracks, turning focusing on the results of finding all records and then logging them for inspection.
+
+This code defines a pipeline; each operator defines a stage in a pipeline. The pipeline is not _hot_, or _eager_. We need to activate the pipeline by subscribing to it. The `Publisher<T>`  only defines one type of subscription, but Reactor defines a few overloads that provide the same lifecycle hooks as overriding individual methods in a fully formed `Subscriber<T>` would. There are hooks to process each emitted value, as well any exceptions thrown, among other things.
+
+== Reactive and in a Rush? Use a `Scheduler`!
+
+Were you to put a breakpoint in any of the lambdas in the previous code listing and then inspect `Thread.currentThread().getName()`, you'd see that the the thread on which processing is running is different than the main thread (which is named `main`). Reactor defers to a `Scheduler` implementation for its processing. You can specify the default global `Scheduler` you'd like to use by calling `Schedulers.setFactory(Factory)`. You can specify on which thread a particular `Publisher<T>` should run when it subscribes by specifying `Mono<T>#subscribeOn(Scheduler)` or `Flux<T>#subscribeOn(Scheduler)`.
+
+== Spring WebFlux
+
+Now that we've got data in the data source, let's stand up a REST API. We'll use Spring WebFlux, a brand new reactive web runtime and component model. Spring WebFlux does not depend on the Servlet specification. It can work independently, with a Netty-based web server. It is designed, from the bottom up, to work with `Publisher<T>` instances.
+
+== REST with Spring WebFlux
+
+We can use Spring MVC style controllers, like this:
+
+.a Spring MVC style REST API.
+====
+[source,java,indent=0]
+----
+include::./library-service/src/main/kotlin/com/example/libraryservice/BookRestController.java[]
+----
+====
+
+NOTE: Spring has the concept of profiles. Profiles are labels, or tags, essentially, for Spring beans. Beans in a given profile don't exist unless that profile is activated. The easiest way to activate a profile is to use a command line argument when running the `java` command. If you wanted to activate all the beans under the `profile1` and `profile2` profiles, you'd use an incantation like this: `java -Dspring.profiles.active=profile1,profile2 -jar ..`. The benefit of the profile, in this case, is that we can have the same HTTP endpoints implemented three different ways in the same codebase and only activate one at a time.
+
+This controller should look familiar to anyone who's ever used Spring MVC. It may be familiar, but it is _not_ Spring MVC. We're using a new reactive runtime called Spring WebFlux. The annotations are the same, but the rules are sometimes different.
+
+== Functional Reactive  Endpoints
+
+The last code listing demonstrates a controller. Spring Web Flux controllers define endpoint handlers and endpoint mappings through declarative annotations. The annotations describe how the routing for a given endpoints is to be handled. They're sophisticated, but ultimately limited to whatever the framework itself can do with those annotations. If you want more flexible request matching capabilities, you can use Spring WebFlux functional reactive endpoints.
+
+.The same endpoints reworked as funtional reactive endpoints in Java. Run this using the `frp-java` profile.
+====
+[source,java,indent=0]
+----
+include::./library-service/src/main/kotlin/com/example/libraryservice/BookRestConfigurationJava.java[]
+----
+====
+
+
+The functional reactive style lets you express HTTP endpoints as request predicates mapped to a handler class. The handler class implementation is easily expressed as concise Java lambdas. You  can use the default request predicates or provide your to gain full control over how requests are matched and dispatched.
+
+We produce a result and pass it to the `body(Publisher<T>)` method, along with a class literal. We need the class literal to help the engine figure out  what type of message framing it should do. Remember, that `Publisher<T>` _might_ produce a TRILLION records! It might not ever stop! The producer can't afford to wait until all records have been produced and _then_ marshal the record from an object to JSON. So, it marhsals each record as soon as it's got it. We need to tell it what kind of message to look out for. In the Spring MVC style controllers, the return value (a `Publisher<T>`) in the handler methods encodes its generic parameter, `T`, and the engine can retrieve that generic parameter using reflection. The engine can _not_ do the same thing for the instance variable passed into the `body` method as a parameter since there's no easy way to retrieve the generic signature of instance variables. We call this limitation _type erasure_. The type literal gets us past this restriction.
+
+If you're using the Kotlin language, things are even more concise thanks to a Kotlin-language DSL that also ships as part of Spring Framework 5.   Kotlin requires less code and also supports retrieving the generic parameter thanks to runtime reification of inline methods. Here are the same endpoints reimplemented using the Kotlin-language DSL:
+
+.Here are the same endpoints using the Kotlin-language DSL
+====
+[source,java,indent=0]
+----
+include::./library-service/src/main/kotlin/com/example/libraryservice/BookRestConfigurationKotlin.kt[]
+----
+====
+
