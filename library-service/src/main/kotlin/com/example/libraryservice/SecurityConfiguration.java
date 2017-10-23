@@ -23,10 +23,10 @@ class SecurityConfiguration {
     @Bean
     MapUserDetailsRepository authentication() {
         return new MapUserDetailsRepository(
-            user("rjohnson", "ADMIN"),
-            user("cwalls"),
-            user("jlong"),
-            user("rwinch", "ADMIN"));
+                user("rjohnson", "ADMIN"),
+                user("cwalls"),
+                user("jlong"),
+                user("rwinch", "ADMIN"));
     }
 
     //@formatter:off
@@ -40,7 +40,13 @@ class SecurityConfiguration {
                 .authorizeExchange()
                         .pathMatchers("/books/{author}").access((auth, ctx) ->
                             auth
-                            .map(a -> a.getName().equals(ctx.getVariables().get("author")))
+                            .map(authentication -> {
+                                Object author = ctx.getVariables().get("author");
+                                boolean matchesAuthor = authentication.getName().equals(author);
+                                boolean isAdmin = authentication.getAuthorities().stream()
+                                    .anyMatch(ga -> ga.getAuthority().contains("ROLE_ADMIN"));
+                                return (matchesAuthor || isAdmin);
+                            })
                             .map(AuthorizationDecision::new)
                         )
                         .anyExchange().hasRole("ADMIN")
