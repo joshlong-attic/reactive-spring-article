@@ -32,15 +32,15 @@ class SecurityConfiguration {
     @Profile("authorization")
     SecurityWebFilterChain authorization(ServerHttpSecurity http) {
         ReactiveAuthorizationManager<AuthorizationContext> am = (auth, ctx) ->
-            auth
-                .map(authentication -> {
-                    Object author = ctx.getVariables().get("author");
-                    boolean matchesAuthor = authentication.getName().equals(author);
-                    boolean isAdmin = authentication.getAuthorities().stream()
-                            .anyMatch(ga -> ga.getAuthority().contains("ROLE_ADMIN"));
-                    return (matchesAuthor || isAdmin);
-                })
-                .map(AuthorizationDecision::new);
+          auth
+            .map(authentication -> {
+                Object author = ctx.getVariables().get("author");
+                boolean matchesAuthor = authentication.getName().equals(author);
+                boolean isAdmin = authentication.getAuthorities().stream()
+                        .anyMatch(ga -> ga.getAuthority().contains("ROLE_ADMIN"));
+                return (matchesAuthor || isAdmin);
+            })
+            .map(AuthorizationDecision::new);
         return http
                 .httpBasic()
                 .and()
@@ -49,7 +49,6 @@ class SecurityConfiguration {
                 .anyExchange().hasRole("ADMIN")
                 .and()
                 .build();
-
     }
 
 
