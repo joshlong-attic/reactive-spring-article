@@ -18,11 +18,12 @@ class SecurityConfiguration {
 
     @Bean
     ReactiveUserDetailsService authentication() {
+        User.UserBuilder builder = User.withDefaultPasswordEncoder();
         return new MapReactiveUserDetailsService(
-                User.withDefaultPasswordEncoder().username("rjohnson").password("pw").roles("ADMIN").build(),
-                User.withDefaultPasswordEncoder().username("cwalls").password("pw").roles().build(),
-                User.withDefaultPasswordEncoder().username("jlong").password("pw").roles().build(),
-                User.withDefaultPasswordEncoder().username("rwinch").password("pw").roles("ADMIN").build());
+                builder.username("rjohnson").password("pw").roles("ADMIN").build(),
+                builder.username("cwalls").password("pw").roles().build(),
+                builder.username("jlong").password("pw").roles().build(),
+                builder.username("rwinch").password("pw").roles("ADMIN").build());
     }
 
     //@formatter:off
