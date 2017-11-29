@@ -188,15 +188,9 @@ include::./library-service/src/main/kotlin/com/example/libraryservice/BookRestCo
 
 == Spring Security
 
-I know what you're thinking, but its *still* not quite ready for production. We need to address security. We'll use Spring Security 5.0. Spring Security  supports a rich set of integrations with all manner of identity providers. It supports authentication and authorization. Spring Security supports authentication by propagating a security context so that application level code - method invocations, HTTP requests, etc. - have easy access to the context. The context has historically been implemented with a `ThreadLocal`. This makes a lot of sense in a non-reactive world, but less so in  a reactive world. Reactor provides a  `Context` object, which acts as a sort of dictionary. Spring Security 5.0's reactive support propagates its security context using this mechanism. Parallel, reactive type hierarchies have been introduced to support non-blocking authentication and authorization.
+I know what you're thinking, but its *still* not quite ready for production. We need to address security.  Spring Security  supports a rich set of integrations with all manner of identity providers. It supports authentication by propagating a security context so that application level code - method invocations, HTTP requests, etc. - have easy access to the context. The context has historically been implemented with a `ThreadLocal`. Thread local state doesn't make a lot of sense in a reactive world. Reactor provides a  `Context` object, which acts as a sort of dictionary. Spring Security 5.0's reactive support propagates its security context using this mechanism. Parallel, reactive type hierarchies have been introduced to support non-blocking authentication and authorization. You don't have to worry about much of this nuance. I just think it's dope. All we need to know is that in the reactive world, authentication is handled by an object of type `ReactiveAuthenticationManager` which has a simple job: given an `Authentication` attempt, return a `Mono<Authentication>`  (indicating whether the authentication attempt succeeded) or throw an `Exception`.
 
-You don't have to worry about much of this nuance. I just think it's dope. All we need to know is that in the reactive world, authentication is handled by an object of type `ReactiveAuthenticationManager` which has a simple job: given an `Authentication` attempt, return a `Mono<Authentication>`  (indicating whether the authentication attempt succeeded) or throw an `Exception`.
-
-One implementation of the `ReactiveAuthenticationManager` supports delegating to a user-provided object of type `UserDetailsRepository`. The `UserDetailsRepository` connects your custom username and password store to Spring Security's authentication. You might have a database table called `USERS` or just a hardcoded `Map<K,V>` of users.
-
-By default, Spring Security locks down the whole application and installs HTTP BASIC authentication. Any attempt at calling any endpoint will fail unless we provide credentials. By default all authenticated principals can access all endpoints.
-
-Let's establish introduce a few users of various roles. All users will have the `USER` role, but only a privileged few will have the `ADMIN` role. In this newly secured world, let's say that all users will be able to view the books they've written, but only those with the `ADMIN` role will be able to see _all_ the books. (Let's ignore for now whether this domain makes any sense!)
+One implementation of the `ReactiveAuthenticationManager` supports delegating to a user-provided object of type `MapReactiveUserDetailsService`. The `MapReactiveUserDetailsService` connects your custom username and password store to Spring Security's authentication. You might have a database table called `USERS` or just a hardcoded `Map<K,V>` of users.  By default, Spring Security locks down the whole application and installs HTTP BASIC authentication. Any attempt at calling any endpoint will fail unless we provide credentials. By default all authenticated principals can access all endpoints. Let's establish introduce a few users of various roles. All users will have the `USER` role, but only a privileged few will have the `ADMIN` role. In this newly secured world, let's say that all users will be able to view the books they've written, but only those with the `ADMIN` role will be able to see _all_ the books. (Let's ignore for now whether this domain makes any sense!)
 
 .The Spring Security configuration
 ====
@@ -225,8 +219,6 @@ It won't work if I try to access `http://localhost:8080/books/rwinch`, though. O
 curl -urwinch:pw http://localhost:8080/books
 ----
 ====
-
-That will work. We've only begun to scratch the surface of application security.
 
 == Deployment
 
@@ -262,7 +254,7 @@ We configure the `WebClient` and pre-configure a `baseUrl` as well as an `Exchan
 
 == Subscriber#onNext
 
-What's next? In this article we've looked briefly at building a web service with Spring Boot. We looked at Reactor, Spring Data Kay, Spring Framework 5 and Spring WebFlux, Spring Security 5, and Spring Boot 2.0. Spring Boot 2 makes it easy to assemble the various reactive Spring projects into an application. We didn't look at the Spring Boot Actuator in this article, but it serves to support operational concerns in the production application. It surfaces metrics, application health and much more. It took has been updated to work seamlessly in a reactive world.
+What's next? In this article we've looked briefly at building a web service with Spring Boot. We looked at Reactor, Spring Data Kay, Spring Framework 5 and Spring WebFlux, Spring Security 5, and Spring Boot 2.0. Spring Boot 2 makes it easy to assemble the various reactive Spring projects into an application. We didn't look at the Spring Boot Actuator, but it   surfaces operational data like metrics, application health and more. It  has also been updated to work seamlessly in a reactive world.
 
 Spring Boot 2 sets the stage  for Spring Cloud Finchley. Spring Cloud Finchley builds on Spring Boot 2.0 and updates a number of different APIs, where appropriate, to support  reactive programming. Service registration and discovery works in Spring WebFlux based applications. Spring Cloud Commons supports client-side load-balancing across services registered in a service registry (like Apache Zookeepere,  Hashicorp Consul and Netflix Eureka) for the Spring Framework `WebClient`. Spring Cloud Netlix Hystrix circuit breakers have always worked naturally with RxJava, which in turn can interop with `Publisher<T>` instances. This is even easier. Spring Cloud Stream supports working with `Publisher<T>` instances to describe how messages arrive and are sent to messaging subsraits like RabbitMQ, Apache Kafka or Redis. Spring Cloud Gateway is a brand new reactive API gateway project that supports HTTP and websocket request proxying, rewriting, load-balancing, circuit breaking, rate limiting and so much more. Spring Cloud Sleuth has been updated to support distributed tracing across reactive boundaries. The list goes on and on.
 
