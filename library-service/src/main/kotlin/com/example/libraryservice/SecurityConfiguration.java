@@ -27,25 +27,26 @@ class SecurityConfiguration {
                 builder.username("jlong").password("pw").roles().build(),
                 builder.username("rwinch").password("pw").roles("ADMIN").build());
     }
-    
+
     @Bean
     @Profile("authorization")
     SecurityWebFilterChain authorization(ServerHttpSecurity http) {
-        ReactiveAuthorizationManager<AuthorizationContext> am = (auth, ctx) -> auth
-            .map(authentication -> {
-                Object author = ctx.getVariables().get("author");
-                boolean matchesAuthor = authentication.getName().equals(author);
-                boolean isAdmin = authentication.getAuthorities().stream()
-                        .anyMatch(ga -> ga.getAuthority().contains("ROLE_ADMIN"));
-                return (matchesAuthor || isAdmin);
-            })
-            .map(AuthorizationDecision::new);
+        ReactiveAuthorizationManager<AuthorizationContext> am = (auth, ctx) ->
+            auth
+                .map(authentication -> {
+                    Object author = ctx.getVariables().get("author");
+                    boolean matchesAuthor = authentication.getName().equals(author);
+                    boolean isAdmin = authentication.getAuthorities().stream()
+                            .anyMatch(ga -> ga.getAuthority().contains("ROLE_ADMIN"));
+                    return (matchesAuthor || isAdmin);
+                })
+                .map(AuthorizationDecision::new);
         return http
                 .httpBasic()
                 .and()
                 .authorizeExchange()
-                  .pathMatchers("/books/{author}").access(am)
-                  .anyExchange().hasRole("ADMIN")
+                .pathMatchers("/books/{author}").access(am)
+                .anyExchange().hasRole("ADMIN")
                 .and()
                 .build();
 
