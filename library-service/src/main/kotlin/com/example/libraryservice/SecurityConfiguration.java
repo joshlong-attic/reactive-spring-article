@@ -5,8 +5,9 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.authorization.AuthorizationDecision;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
-import org.springframework.security.config.web.server.HttpSecurity;
-import org.springframework.security.core.userdetails.MapUserDetailsRepository;
+import org.springframework.security.config.web.server.ServerHttpSecurity;
+import org.springframework.security.core.userdetails.MapReactiveUserDetailsService;
+import org.springframework.security.core.userdetails.ReactiveUserDetailsService;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.server.SecurityWebFilterChain;
@@ -21,8 +22,8 @@ import java.util.List;
 class SecurityConfiguration {
 
     @Bean
-    MapUserDetailsRepository authentication() {
-        return new MapUserDetailsRepository(
+    ReactiveUserDetailsService authentication() {
+        return new MapReactiveUserDetailsService(
                 user("rjohnson", "ADMIN"),
                 user("cwalls"),
                 user("jlong"),
@@ -32,7 +33,7 @@ class SecurityConfiguration {
     //@formatter:off
     @Bean
     @Profile("authorization")
-    SecurityWebFilterChain authorization(HttpSecurity http) {
+    SecurityWebFilterChain authorization(ServerHttpSecurity http) {
         return
             http
                 .httpBasic()
